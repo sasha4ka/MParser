@@ -1,3 +1,4 @@
+import csv
 from collections import deque
 from pathlib import Path
 from typing import Any, Deque, Dict, Iterator, List, Optional, TextIO
@@ -157,9 +158,34 @@ class JSON_Parser(Base_Parser):
         return file_path.suffix == ".json"
 
 
-class XML_Parser(Base_Parser):
-    def process(self, file_path: Path) -> Dict[str, Any]:
-        return {"key": "value"}
+class CSV_Parser(Base_Parser):
+    def process(self, file_path: Path) -> list[Any]:
+        csv_config = getattr(self, "config", {}) or {}
+        delimiter = csv_config.get("delimiter", ",")
+        quotechar = csv_config.get("quotechar", '"')
+        escapechar = csv_config.get("escapechar")
+        has_header = csv_config.get("has_header", False)
+
+        with open(file_path, "r", newline="", encoding="utf-8") as file:
+            if has_header:
+                return [
+                    row
+                    for row in csv.DictReader(
+                        file,
+                        delimiter=delimiter,
+                        quotechar=quotechar,
+                        escapechar=escapechar,
+                    )
+                ]
+            return [
+                row
+                for row in csv.reader(
+                    file,
+                    delimiter=delimiter,
+                    quotechar=quotechar,
+                    escapechar=escapechar,
+                )
+            ]
 
     def match(self, file_path: Path) -> bool:
-        return file_path.suffix == ".xml"
+        return file_path.suffix == ".csv"
