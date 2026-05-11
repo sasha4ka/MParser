@@ -50,7 +50,6 @@ from mparser.base import Table, Main_Column, Calc_Column, Calculation
 
 
 class Smeta(Table):
-   """Подсчитывает выручку с продажи товаров"""
    name = Main_Column(data_type=str)
    cost = Main_Column(data_type=float)
    count = Main_Column(data_type=int)
@@ -59,6 +58,11 @@ class Smeta(Table):
    @Calculation(data_type=float)
    def earn(row: Row) -> float:
       return row.count * (row.price - row.cost)
+
+   class Meta(Table.Meta):
+      """Подсчитывает выручку с продажи товаров"""
+      display_name = "Смета"
+      filters = [lambda row: row.count > 5]
 ```
 
 *Основные столбцы* (`Main_Column`) - значения, получаемые из файлов  
@@ -74,7 +78,7 @@ poetry run mparser -r
 Mparser v0.1.0
 (...)
 Table Registry:
-- Smeta - Подсчитывает выручку с продажи товаров
+- Смета (Smeta) - Подсчитывает выручку с продажи товаров
 ```
 
 ### Парсеры

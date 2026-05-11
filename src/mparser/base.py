@@ -2,6 +2,9 @@ import abc
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional, Tuple
 
+type Filter = Callable[[Row], bool]
+type Filters = list[Filter]
+
 
 class Parser_Registry:
     """A registry of all parsers"""
@@ -137,7 +140,8 @@ class Table_Registry:
 
     def __str__(self) -> str:
         return "Table Registry:\n" + "\n".join(
-            f"- {name} - {table.__doc__}" for name, table in self.tables.items()
+            f"- {table.Meta.display_name} ({name}) - {table.Meta.description}"
+            for name, table in self.tables.items()
         )
 
 
@@ -156,6 +160,8 @@ class Table_Meta(type):
         for attr_name, value in list(namespace.items()):
             if attr_name.startswith("__"):
                 continue
+            if attr_name == "Meta":
+                continue
             if not isinstance(value, Column):
                 raise TypeError(f"Attribute {attr_name} must be instance of column")
             if isinstance(value, Main_Column):
@@ -166,7 +172,22 @@ class Table_Meta(type):
 
         namespace["_columns"] = columns
         namespace["_main_columns"] = main_columns
+
+        if "Meta" not in namespace:
+
+            class Meta:
+                description = ""
+                display_name = name
+                filters = []
+
+            namespace["Meta"] = Meta
+        meta = namespace["Meta"]
+        meta.description = meta.__doc__ or namespace["__doc__"] or ""
+        meta.filters = meta.__dict__.get("filters", [])
+        meta.display_name = meta.__dict__.get("display_name", name)
+
         cls = super().__new__(mcls, name, bases, namespace)
+
         table_registry.register_table(cls)
         return cls
 
@@ -175,6 +196,11 @@ class Table(metaclass=Table_Meta):
     _main_columns: list[Main_Column]
     _columns: list[Column]
     rows: list[Row]
+
+    class Meta:
+        display_name: str
+        description: str
+        filters: list[Filter]
 
     def __init__(self, *args: list[Any], **kwargs: dict[str, Any]) -> None:
         if type(self) is Table:
@@ -208,7 +234,13 @@ class Table(metaclass=Table_Meta):
                 raise TypeError(f"Unknown type of calculation result {column.name}")
             row.__dict__[column.name] = result
 
-        self.rows.append(row)
+        match_filters = True
+        for filter in self.Meta.filters:
+            match_filters = match_filters and filter(row)
+
+        if match_filters:
+            self.rows.append(row)
+
         return row
 
     def parse_rows(self, data: list[list[str]]) -> list[Row]:
@@ -218,8 +250,8 @@ class Table(metaclass=Table_Meta):
         return (
             "-" * 50
             + "\n"
-            + self.__class__.__name__.center(50)
-            + "\n"
+            + f"{self.Meta.display_name.center(50)}\n"
+            + f"{self.Meta.description}\n"
             + "-" * 50
             + "\n"
             + "; ".join([column.name for column in self._columns])
