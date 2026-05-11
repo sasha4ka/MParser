@@ -91,15 +91,13 @@ Values can be obtained by column's name (row.title, row.cost)"""
 
 
 class Column(abc.ABC):
-    """Declares a column in table"""
+    """(Abstract) Declares a column in table"""
 
     name: str
     data_type: type
 
 
 class Main_Column(Column):
-    """Column"""
-
     def __init__(self, *, name: Optional[str] = None, data_type: type) -> None:
         self.name = name or "_not_given"
         self.data_type = data_type
