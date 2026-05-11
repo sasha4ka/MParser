@@ -100,21 +100,23 @@ class Column(abc.ABC):
 class Main_Column(Column):
     """Column"""
 
-    def __init__(self, *, name: str, data_type: type) -> None:
-        self.name = name
+    def __init__(self, *, name: Optional[str] = None, data_type: type) -> None:
+        self.name = name or "_not_given"
         self.data_type = data_type
 
 
 class Calc_Column(Column):
     calc: Callable[[Row], Any]
 
-    def __init__(self, *, name: str, data_type: type, calc: Callable[[Row], Any]):
-        self.name = name
+    def __init__(
+        self, *, name: Optional[str] = None, data_type: type, calc: Callable[[Row], Any]
+    ):
+        self.name = name or "_not_given"
         self.data_type = data_type
         self.calc = calc
 
 
-def Calculation(name: str, data_type: type) -> Any:
+def Calculation(data_type: type, name: Optional[str] = None) -> Any:
     def decorator(func: Callable[[Row], Any]) -> Calc_Column:
         return Calc_Column(name=name, data_type=data_type, calc=func)
 
@@ -161,6 +163,8 @@ class Table_Meta(type):
             if isinstance(value, Main_Column):
                 main_columns.append(value)
             columns.append(value)
+            if value.name == "_not_given":
+                value.name = attr_name
 
         namespace["_columns"] = columns
         namespace["_main_columns"] = main_columns
