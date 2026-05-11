@@ -50,6 +50,7 @@ from mparser.base import Table, Main_Column, Calc_Column, Calculation
 
 
 class Smeta(Table):
+   """Подсчитывает выручку с продажи товаров"""
    name = Main_Column(data_type=str)
    cost = Main_Column(data_type=float)
    count = Main_Column(data_type=int)
@@ -66,6 +67,15 @@ class Smeta(Table):
 Объект класса (`Row`) представляет из себя одну строку из таблицы
 
 Декоратор (`@Calculation`) может быть использован для более простого способа создания расчетных столбцов
+
+Документация класса будет переданна в реестр при регестрации таблицы
+```
+poetry run mparser -r
+Mparser v0.1.0
+(...)
+Table Registry:
+- Smeta - Подсчитывает выручку с продажи товаров
+```
 
 ### Парсеры
 Парсеры реализуют абстрактный класс (`base.Base_Parser`). При создании парсера он автоматически регистрируется в реестре и доступен для выбора. Пример парсера:
