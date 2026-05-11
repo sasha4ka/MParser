@@ -1,10 +1,10 @@
 import csv
 from pathlib import Path
 
-from mparser.base import Base_Parser
+from mparser.base import BaseParser
 
 
-class CSV_Parser(Base_Parser):
+class CSVParser(BaseParser):
     def process(self, file_path: Path) -> list[list[str]]:
         csv_config = getattr(self, "config", {}) or {}
         delimiter = csv_config.get("delimiter", ",")

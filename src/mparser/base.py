@@ -6,10 +6,10 @@ type Filter = Callable[[Row], bool]
 type Filters = list[Filter]
 
 
-class Parser_Registry:
+class ParserRegistry:
     """A registry of all parsers"""
 
-    parsers: "Dict[str, Base_Parser]"
+    parsers: "Dict[str, BaseParser]"
     config: Dict[str, Dict[str, Any]]
 
     def __init__(self, config: Optional[Dict[str, Dict[str, Any]]] = None):
@@ -23,14 +23,14 @@ class Parser_Registry:
         instance = parser_cls(config)
         self.parsers.update({parser_type: instance})
 
-    def get_parser(self, file_path: Path) -> "Optional[Base_Parser]":
+    def get_parser(self, file_path: Path) -> "Optional[BaseParser]":
         """Get parser by file extension"""
         for parser in self.parsers.values():
             if parser.match(file_path):
                 return parser
         return None
 
-    def list_parsers(self) -> "Dict[str, Base_Parser]":
+    def list_parsers(self) -> "Dict[str, BaseParser]":
         return self.parsers
 
     def __str__(self) -> str:
@@ -39,10 +39,10 @@ class Parser_Registry:
         )
 
 
-parser_registry = Parser_Registry()
+parser_registry = ParserRegistry()
 
 
-class Base_Parser(abc.ABC):
+class BaseParser(abc.ABC):
     """Abstract parser"""
 
     def __init__(self, config: Optional[Dict[str, Any]] = None):
@@ -100,13 +100,13 @@ class Column(abc.ABC):
     data_type: type
 
 
-class Main_Column(Column):
+class MainColumn(Column):
     def __init__(self, *, name: Optional[str] = None, data_type: type) -> None:
         self.name = name or "_not_given"
         self.data_type = data_type
 
 
-class Calc_Column(Column):
+class CalcColumn(Column):
     calc: Callable[[Row], Any]
 
     def __init__(
@@ -118,13 +118,13 @@ class Calc_Column(Column):
 
 
 def Calculation(data_type: type, name: Optional[str] = None) -> Any:
-    def decorator(func: Callable[[Row], Any]) -> Calc_Column:
-        return Calc_Column(name=name, data_type=data_type, calc=func)
+    def decorator(func: Callable[[Row], Any]) -> CalcColumn:
+        return CalcColumn(name=name, data_type=data_type, calc=func)
 
     return decorator
 
 
-class Table_Registry:
+class TableRegistry:
     tables: dict[str, type[Table]]
 
     def __init__(self) -> None:
@@ -145,10 +145,10 @@ class Table_Registry:
         )
 
 
-table_registry = Table_Registry()
+table_registry = TableRegistry()
 
 
-class Table_Meta(type):
+class TableMeta(type):
     def __new__(
         mcls, name: str, bases: Tuple[type, ...], namespace: dict[str, Any]
     ) -> type:
@@ -156,7 +156,7 @@ class Table_Meta(type):
             return super().__new__(mcls, name, bases, namespace)
 
         columns: list[Column] = []
-        main_columns: list[Main_Column] = []
+        main_columns: list[MainColumn] = []
         for attr_name, value in list(namespace.items()):
             if attr_name.startswith("__"):
                 continue
@@ -164,7 +164,7 @@ class Table_Meta(type):
                 continue
             if not isinstance(value, Column):
                 raise TypeError(f"Attribute {attr_name} must be instance of column")
-            if isinstance(value, Main_Column):
+            if isinstance(value, MainColumn):
                 main_columns.append(value)
             columns.append(value)
             if value.name == "_not_given":
@@ -192,8 +192,8 @@ class Table_Meta(type):
         return cls
 
 
-class Table(metaclass=Table_Meta):
-    _main_columns: list[Main_Column]
+class Table(metaclass=TableMeta):
+    _main_columns: list[MainColumn]
     _columns: list[Column]
     rows: list[Row]
 
@@ -218,7 +218,7 @@ class Table(metaclass=Table_Meta):
 
     def parse_row(self, data: list[str]) -> Row:
         if len(data) != len(self._main_columns):
-            raise Parsing_Exception("Number of main columns isn't equal data's length")
+            raise ParsingException("Number of main columns isn't equal data's length")
 
         row = Row(self, self._columns)
 
@@ -227,7 +227,7 @@ class Table(metaclass=Table_Meta):
             row.__dict__[column.name] = self.parse_value(value, column.data_type)
 
         for column in self._columns:
-            if not isinstance(column, Calc_Column):
+            if not isinstance(column, CalcColumn):
                 continue
             result = column.calc(row)
             if type(result) is not column.data_type:
@@ -260,5 +260,5 @@ class Table(metaclass=Table_Meta):
         )
 
 
-class Parsing_Exception(Exception):
+class ParsingException(Exception):
     pass

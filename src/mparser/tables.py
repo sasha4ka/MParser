@@ -1,12 +1,12 @@
-from mparser.base import Calc_Column, Filters, Main_Column, Table
+from mparser.base import CalcColumn, Filters, MainColumn, Table
 
 
 class Smeta(Table):
-    name = Main_Column(data_type=str)
-    cost = Main_Column(data_type=float)
-    count = Main_Column(data_type=int)
-    price = Calc_Column(data_type=float, calc=lambda row: row.cost * 1.1)
-    earn = Calc_Column(
+    name = MainColumn(data_type=str)
+    cost = MainColumn(data_type=float)
+    count = MainColumn(data_type=int)
+    price = CalcColumn(data_type=float, calc=lambda row: row.cost * 1.1)
+    earn = CalcColumn(
         data_type=float, calc=lambda row: (row.price - row.cost) * row.count
     )
 
