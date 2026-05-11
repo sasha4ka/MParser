@@ -222,6 +222,8 @@ class Table(metaclass=Table_Meta):
             + "\n"
             + "-" * 50
             + "\n"
+            + "; ".join([column.name for column in self._columns])
+            + "\n"
             + "\n".join(str(row) for row in self.rows)
         )
 
