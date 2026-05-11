@@ -1,124 +1,91 @@
 # MParser
+Проект парсера, который поддерживает различные форматы файлов и таблиц. 
+Функционал может быть расширен при помощи добавляемых модулей (см.ниже)
 
-A versatile command-line tool for parsing various file formats, built with Python.
-
-## Features
-
-- **JSON Parsing**: Parse JSON files with support for nested objects, arrays, strings, numbers, booleans, and null values.
-- **Extensible Architecture**: Easily add support for new file formats by implementing custom parsers.
-- **Command-Line Interface**: Simple CLI for parsing files from the terminal.
-
-## Installation
-
-### Prerequisites
-
-- Python 3.14 or higher
-- Poetry (for dependency management)
-
-### Install from Source
-
-1. Clone the repository:
-   ```bash
-   git clone <repository-url>
-   cd MParser
-   ```
-
-2. Install dependencies using Poetry:
-   ```bash
-   poetry install
-   ```
-
-## Usage
-
-Run the parser using Poetry:
-
-```bash
-poetry run mparser -f <file-path>
+### Подготовка окружения
+```sh
+poetry install
 ```
 
-### Examples
+### Использование
+```
+usage: MParser [-h] [-r] [-f FILE] [-t TABLE] [-s]
 
-Parse a JSON file:
-```bash
-poetry run mparser -f test_file.json
+Module parser for different filetypes and data schemes
+
+options:
+  -h, --help         show this help message and exit
+  -r, --registry     show table and parser registry
+  -f, --file FILE    select file for parsing
+  -t, --table TABLE  select table for parsing
+  -s, --short        dont show table rows
 ```
 
-### Supported File Formats
-
-- **JSON** (`.json`): Full JSON parsing support
-- **XML** (`.xml`): Basic XML parsing (placeholder implementation)
-
-## Development
-
-### Setup Development Environment
-
-1. Install development dependencies:
-   ```bash
-   poetry install --with dev
-   ```
-
-2. Install pre-commit hooks:
-   ```bash
-   pre-commit install
-   ```
-
-### Code Quality
-
-This project uses:
-- **Ruff**: For linting and code formatting
-- **MyPy**: For static type checking
-- **Pre-commit**: For automated code quality checks
-
-### Adding New Parsers
-
-To add support for a new file format:
-
-1. Create a new parser class inheriting from `Base_Parser` in `src/mparser/parsers.py`
-2. Implement the `process(self, file_path: Path) -> Any` method
-3. Implement the `match(self, file_path: Path) -> bool` method to identify file types
-4. The parser will be automatically registered
-
-Example:
-```python
-class NewFormat_Parser(Base_Parser):
-    def process(self, file_path: Path) -> Dict[str, Any]:
-        # Your parsing logic here
-        pass
-
-    def match(self, file_path: Path) -> bool:
-        return file_path.suffix == ".newformat"
+### Примеры
+```sh
+poetry run mparser  # файлы и таблица будут выбраны интерактивно
+poetry run mparser -f "files.json" -t Smeta
+poetry run mparser -t Smeta  # если будет найден файл files.json приоритет будет у него
 ```
 
-## Project Structure
-
-```
-MParser/
-├── src/mparser/
-│   ├── __init__.py
-│   ├── base.py          # Base parser classes and registry
-│   ├── engine.py        # Parsing engine (if applicable)
-│   ├── main.py          # CLI entry point
-│   └── parsers.py       # Concrete parser implementations
-├── tests/
-│   └── __init__.py
-├── pyproject.toml       # Project configuration
-├── poetry.lock          # Dependency lock file
-└── README.md
+### Пример files.json
+```json
+[
+   "samples/sample1.csv",
+   "samples/sapmle2.json"
+]
 ```
 
-## Contributing
+# Расширение функционала
+Функционал может быть расширен при помощи:
+1. Изменения файла tables.py для добавления таблиц
+2. Изменения файла parsers.py для добавления типов данных
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Run tests and linting
-5. Submit a pull request
+### Таблицы
+Таблицы создаются декларативно при помощи реализации абстрактного класса (`base.Table`). 
+При создании класса он автоматически регистрируется в реестре и доступен при выборе.
 
-## License
+```python3
+from mparser.base import Table, Main_Column, Calc_Column, Calculation
 
-This project is licensed under the MIT License - see the LICENSE file for details.
 
-## Author
+class Smeta(Table):
+   name = Main_Column(data_type=str)
+   cost = Main_Column(data_type=float)
+   count = Main_Column(data_type=int)
+   price = Calc_Column(data_type=float, calc=lambda row: return row.cost * 1.1)
 
-Aleksandr Basov - sasha4ka99991@gmail.com</content>
-<parameter name="filePath">/home/sasha/Projects/week-1/MParser/README.md
+   @Calculation(data_type=float)
+   def earn(row: Row) -> float:
+      return row.count * (row.price - row.cost)
+```
+
+*Основные столбцы* (`Main_Column`) - значения, получаемые из файлов  
+*Расчетные столбцы* (`Calc_Column`) - значения, расчитываемые из других столбцов  
+
+Объект класса (`Row`) представляет из себя одну строку из таблицы
+
+Декоратор (`@Calculation`) может быть использован для более простого способа создания расчетных столбцов
+
+### Парсеры
+Парсеры реализуют абстрактный класс (`base.Base_Parser`). При создании парсера он автоматически регистрируется в реестре и доступен для выбора. Пример парсера:
+```python3
+from mparser.base import Base_Parser
+
+
+class My_Parser(Base_Parser):
+   def process(self, file_path: Path) -> list[list[str]]:
+      """Логика обработки файла"""
+      return result
+
+   def match(self, file_path: Path) -> bool:
+      return file_path.suffix == ".my_file_extension"
+```
+
+`Base_Parser.process` реализует логику обработки файла. Возвращает список строк, каждая строка - `list[str]`  
+`Base_Parser.match` отвечает за проверку совпадения типа файла
+
+# Contribution
+1. Сделайте форк репозитория
+2. Внесите необходимые изменения в новой ветке
+3. Создайте pull request
