@@ -53,7 +53,7 @@ class Smeta(Table):
    name = Main_Column(data_type=str)
    cost = Main_Column(data_type=float)
    count = Main_Column(data_type=int)
-   price = Calc_Column(data_type=float, calc=lambda row: return row.cost * 1.1)
+   price = Calc_Column(data_type=float, calc=lambda row: row.cost * 1.1)
 
    @Calculation(data_type=float)
    def earn(row: Row) -> float:
