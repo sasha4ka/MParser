@@ -2,7 +2,7 @@ import abc
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional, Tuple
 
-type Filter = Callable[[Row], bool]
+type Filter = Callable[[BaseRow], bool]
 type Filters = list[Filter]
 
 
@@ -72,25 +72,18 @@ class BaseParser(abc.ABC):
         return self.name
 
 
-class Row:
+class BaseRow:
     """Contains values from one row. \
-Values can be obtained by column's name (row.title, row.cost)"""
+Values can be obtained by column's name (row.title, row.cost). \
+Note that this class is abstract and every table generates it dynamicly"""
 
-    table: "Table"
+    __slots__: list[str] = []
 
-    def __init__(
-        self,
-        table: "Table",
-        columns: "list[Column]",
-    ) -> None:
-        self.table = table
-        self._columns = columns
-
-        for column in columns:
-            self.__dict__[column.name] = None
+    def __init__(self, columns: list[Column]) -> None:
+        pass
 
     def __str__(self) -> str:
-        return "; ".join(str(self.__dict__[column.name]) for column in self._columns)
+        raise NotImplementedError("This method generates dynamicly")
 
 
 class Column(abc.ABC):
@@ -107,10 +100,14 @@ class MainColumn(Column):
 
 
 class CalcColumn(Column):
-    calc: Callable[[Row], Any]
+    calc: Callable[[BaseRow], Any]
 
     def __init__(
-        self, *, name: Optional[str] = None, data_type: type, calc: Callable[[Row], Any]
+        self,
+        *,
+        name: Optional[str] = None,
+        data_type: type,
+        calc: Callable[[BaseRow], Any],
     ):
         self.name = name or "_not_given"
         self.data_type = data_type
@@ -118,7 +115,7 @@ class CalcColumn(Column):
 
 
 def Calculation(data_type: type, name: Optional[str] = None) -> Any:
-    def decorator(func: Callable[[Row], Any]) -> CalcColumn:
+    def decorator(func: Callable[[BaseRow], Any]) -> CalcColumn:
         return CalcColumn(name=name, data_type=data_type, calc=func)
 
     return decorator
@@ -195,7 +192,7 @@ class TableMeta(type):
 class Table(metaclass=TableMeta):
     _main_columns: list[MainColumn]
     _columns: list[Column]
-    rows: list[Row]
+    rows: list[BaseRow]
 
     class Meta:
         display_name: str
@@ -207,6 +204,30 @@ class Table(metaclass=TableMeta):
             raise TypeError("Table is abstract")
         self.rows = []
 
+    def generate_dynamic_row_class(self) -> type:
+        def __init__(self: BaseRow, columns: list[Column]) -> None:
+            for column in columns:
+                setattr(self, column.name, None)
+
+        def __str__(self: BaseRow) -> str:
+            return "; ".join(
+                [
+                    str(getattr(self, name))
+                    for name in self.__slots__
+                    if not name.startswith("__")
+                ]
+            )
+
+        return type(
+            f"{self.__class__.__name__}Row",
+            (BaseRow,),
+            {
+                "__slots__": tuple(column.name for column in self._columns),
+                "__init__": __init__,
+                "__str__": __str__,
+            },
+        )
+
     def parse_value(self, value: str, data_type: type) -> Any:
         if data_type is str:
             return value
@@ -216,15 +237,16 @@ class Table(metaclass=TableMeta):
             return float(value)
         return data_type(value)
 
-    def parse_row(self, data: list[str]) -> Row:
+    def parse_row(self, data: list[str]) -> BaseRow:
         if len(data) != len(self._main_columns):
             raise ParsingException("Number of main columns isn't equal data's length")
 
-        row = Row(self, self._columns)
+        row_type = self.generate_dynamic_row_class()
+        row = row_type(self._columns)
 
         for i, value in enumerate(data, start=0):
             column = self._main_columns[i]
-            row.__dict__[column.name] = self.parse_value(value, column.data_type)
+            setattr(row, column.name, self.parse_value(value, column.data_type))
 
         for column in self._columns:
             if not isinstance(column, CalcColumn):
@@ -232,7 +254,7 @@ class Table(metaclass=TableMeta):
             result = column.calc(row)
             if type(result) is not column.data_type:
                 raise TypeError(f"Unknown type of calculation result {column.name}")
-            row.__dict__[column.name] = result
+            setattr(row, column.name, result)
 
         match_filters = True
         for filter in self.Meta.filters:
@@ -243,7 +265,7 @@ class Table(metaclass=TableMeta):
 
         return row
 
-    def parse_rows(self, data: list[list[str]]) -> list[Row]:
+    def parse_rows(self, data: list[list[str]]) -> list[BaseRow]:
         return [self.parse_row(row) for row in data]
 
     def __str__(self) -> str:
